@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Spline from '@splinetool/react-spline'
 
 export default function Hero({ onSubmit }) {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [drop, setDrop] = useState(false)
+  const audioRef = useRef(null)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -23,13 +25,29 @@ export default function Hero({ onSubmit }) {
       })
       if (!res.ok) throw new Error('Signup failed')
       const data = await res.json()
-      onSubmit?.(data)
+      // trigger drop animation + sound, then reveal lobby
+      setDrop(true)
+      if (audioRef.current) {
+        try { audioRef.current.currentTime = 0; audioRef.current.play() } catch {}
+      }
+      setTimeout(() => onSubmit?.(data), 1200)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(()=>{
+    const onKey = (e) => {
+      if (e.key === 'Enter') {
+        const form = document.getElementById('hero-form')
+        if (form) form.requestSubmit()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return ()=> window.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
     <section className="relative min-h-[80vh] w-full overflow-hidden">
@@ -40,10 +58,10 @@ export default function Hero({ onSubmit }) {
       <div className="absolute inset-0 bg-gradient-to-b from-white/0 via-white/10 to-white pointer-events-none" />
 
       <div className="relative z-10 max-w-6xl mx-auto px-6 pt-10 sm:pt-16">
-        <div className="backdrop-blur-sm bg-white/40 border border-white/60 shadow-xl rounded-2xl p-6 sm:p-8 w-full max-w-xl">
+        <div className={`backdrop-blur-sm bg-white/40 border border-white/60 shadow-xl rounded-2xl p-6 sm:p-8 w-full max-w-xl transition-transform duration-700 ${drop ? '-translate-y-[120vh] opacity-0' : ''}`}>
           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-gray-900">ROME</h1>
           <p className="mt-3 text-gray-700">A playful world where your avatar drops into a living lobby. Get early access.</p>
-          <form onSubmit={handleSubmit} className="mt-6 flex gap-3">
+          <form id="hero-form" onSubmit={handleSubmit} className="mt-6 flex gap-3">
             <input
               type="email"
               value={email}
@@ -65,6 +83,8 @@ export default function Hero({ onSubmit }) {
           <p className="mt-2 text-xs text-gray-600">By entering, you agree to receive updates about early access.</p>
         </div>
       </div>
+
+      <audio ref={audioRef} src="https://assets.mixkit.co/active_storage/sfx/2015/2015-preview.mp3" preload="auto" />
     </section>
   )
 }
